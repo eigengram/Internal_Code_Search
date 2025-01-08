@@ -1,0 +1,19 @@
+code_repository_backend/
+├── app/
+│   ├── __init__.py            # Initializes the app
+│   ├── models.py              # Database models
+│   ├── database.py            # Database connection and initialization
+│   ├── routes.py              # API routes
+│   ├── schemas.py             # Data validation schemas
+│   ├── utils.py               # Utility functions
+├── main.py                    # Entry point for the backend
+├── requirements.txt           # Python dependencies
+├── config.py                  # Configuration settings
+└── README.md                  # Documentation
+
+open virtualize environment using command:-
+python3 -m venv env
+On macOS/Linux:source env/bin/activate
+On Windows (Command Prompt):.\env\Scripts\activate
+
+run backend server using command python3 main.py

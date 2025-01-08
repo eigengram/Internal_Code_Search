@@ -1,0 +1,1 @@
+run frontend server using command streamlit run app.py
