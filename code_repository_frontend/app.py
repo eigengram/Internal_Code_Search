@@ -1,12 +1,56 @@
 import streamlit as st
 import requests
+import jwt  # For verifying tokens
 
 # Backend API base URL
 BASE_URL = "http://127.0.0.1:8000"
+SECRET_KEY="myrealnameisyash"
 
 # Page Title
 st.set_page_config(page_title="Code Repository", layout="wide")
 st.title("Internal Code Repository")
+
+# Function to verify the token
+def verify_token(token: str):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        st.error("Token has expired. Please log in again.")
+        return None
+    except jwt.InvalidTokenError:
+        st.error("Invalid token. Please log in again.")
+        return None
+
+# Initialize Session State
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
+    st.session_state["token"] = None
+    st.session_state["user"] = None  # To store user information
+
+# Authenticate the session
+if not st.session_state["authenticated"]:
+    # Get the token from URL query parameters
+    params = st.experimental_get_query_params()
+    token = params.get("token", [None])[0]
+
+    # If no token, stop execution
+    if not token:
+        st.warning("No token found. Please log in from your main app.")
+        st.stop()
+
+    # Verify the token
+    payload = verify_token(token)
+    if not payload:
+        st.stop()  # If invalid token, stop execution
+
+    # If valid, store session information
+    st.session_state["authenticated"] = True
+    st.session_state["token"] = token
+    st.session_state["user"] = payload.get("sub")  # Store user info (e.g., email/ID)
+
+# Display the user info
+st.write(f"Welcome, {st.session_state['user']}!")  # Display user identity
 
 # Sidebar Navigation
 st.sidebar.title("Navigation")
@@ -17,7 +61,8 @@ if options == "Search Code":
     st.header("Search for Code Blocks")
     query = st.text_input("Enter keyword or tag to search:", "")
     if st.button("Search"):
-        response = requests.get(f"{BASE_URL}/codeblocks", params={"query": query})
+        headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+        response = requests.get(f"{BASE_URL}/codeblocks", params={"query": query}, headers=headers)
         if response.status_code == 200:
             code_blocks = response.json()
             if code_blocks:
@@ -47,7 +92,8 @@ elif options == "Add Code":
             "tags": tags,
             "code": code
         }
-        response = requests.post(f"{BASE_URL}/codeblocks", json=payload)
+        headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+        response = requests.post(f"{BASE_URL}/codeblocks", json=payload, headers=headers)
         if response.status_code == 200:
             st.success("Code block added successfully!")
         else:
@@ -58,7 +104,8 @@ elif options == "Edit/Delete Code":
     st.header("Edit or Delete Code Blocks")
 
     # Fetch all code blocks
-    response = requests.get(f"{BASE_URL}/codeblocks")
+    headers = {"Authorization": f"Bearer {st.session_state['token']}"}
+    response = requests.get(f"{BASE_URL}/codeblocks", headers=headers)
     if response.status_code == 200:
         code_blocks = response.json()
         if code_blocks:
@@ -81,12 +128,12 @@ elif options == "Edit/Delete Code":
 
                 if st.button("Update"):
                     payload = {
-                    "title": title,
-                    "description": description,
-                    "tags": tags,
-                    "code": code
+                        "title": title,
+                        "description": description,
+                        "tags": tags,
+                        "code": code
                     }
-                    update_response = requests.put(f"{BASE_URL}/codeblocks/{selected_id}", json=payload)
+                    update_response = requests.put(f"{BASE_URL}/codeblocks/{selected_id}", json=payload, headers=headers)
                     if update_response.status_code == 200:
                         st.success("Code block updated successfully!")
                     elif update_response.status_code == 404:
@@ -94,10 +141,9 @@ elif options == "Edit/Delete Code":
                     else:
                         st.error("Failed to update code block. Please check your input.")
 
-
             elif action == "Delete":
                 if st.button("Delete"):
-                    delete_response = requests.delete(f"{BASE_URL}/codeblocks/{selected_id}")
+                    delete_response = requests.delete(f"{BASE_URL}/codeblocks/{selected_id}", headers=headers)
                     if delete_response.status_code == 200:
                         st.success("Code block deleted successfully!")
                     else:
@@ -106,5 +152,3 @@ elif options == "Edit/Delete Code":
             st.warning("No code blocks available.")
     else:
         st.error("Failed to fetch code blocks. Please check the backend server.")
-
-
